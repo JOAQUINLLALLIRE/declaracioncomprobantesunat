@@ -4,7 +4,7 @@
         "Read more about it at https://getcomposer.org/doc/01-basic-usage.md#installing-dependencies",
         "This file is @generated automatically"
     ],
-    "content-hash": "3a3a2db8ddb3a358dc62ecace340ab53",
+    "content-hash": "3c50bcf5643c8578c847827b0a85dcf1",
     "packages": [
         {
             "name": "greenter/xmldsig",
@@ -53,6 +53,8 @@
     "stability-flags": [],
     "prefer-stable": false,
     "prefer-lowest": false,
-    "platform": [],
+    "platform": {
+        "php": ">=5.5"
+    },
     "platform-dev": []
 }

@@ -1,10 +1,12 @@
 <?php
-spl_autoload_register(function($class) {
-    $class = str_replace('\\', '/', $class);
-    require_once('./' . $class . '.php');
-    // require_once($_SERVER['DOCUMENT_ROOT'] . "/concepto/" . $class . '.php');
+// spl_autoload_register(function($class) {
+//     $class = str_replace('\\', '/', $class);
+//     require_once('./' . $class . '.php');
+//     // require_once($_SERVER['DOCUMENT_ROOT'] . "/concepto/" . $class . '.php');
 
-});
+// });
+
+require_once 'vendor/autoload.php';
 
 use SunatDeclaracion\Sunat\DeclaracionSunat;
 use SunatDeclaracion\Entidad;
@@ -45,8 +47,8 @@ try{
     /* Obtener el CDR */
 
     // KIO
-    // $obj = new DeclaracionSunat("20512090878", "epngcibp", "03epngcibp", EmpresaFE::NubeFact, TRUE);
-    // $rpta = $obj->obtenerCdr("01", "FB01", "00040443");
+    $obj = new DeclaracionSunat("20512090878", "epngcibp", "03epngcibp", EmpresaFE::NubeFact, TRUE);
+    $rpta = $obj->obtenerCdr("01", "FB01", "00040443");
 
     // Pecano
     // $obj = new DeclaracionSunat("20600700228", "BILLPKN0", "pkNO5916$#", EmpresaFE::Sunat, TRUE);

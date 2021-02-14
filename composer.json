@@ -11,5 +11,10 @@
     "require": {
         "greenter/xmldsig": "^5.0",
         "php": ">=5.5"
+    },
+    "autoload": {
+        "psr-4": {
+            "SunatDeclaracion\\": "src/SunatDeclaracion/"
+        }
     }
 }
