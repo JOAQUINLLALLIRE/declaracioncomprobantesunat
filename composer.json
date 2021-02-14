@@ -1,6 +1,6 @@
 {
-    "name": "joaquin/declararcp_peru",
-    "description": "Libreria para enviar los comprobantes a SUNAT o NubeFact",
+    "name": "joaquin/declaracioncomprobantesunat",
+    "description": "Declarar los comprobantes electrónicos o físicos a Sunat",
     "license": "MIT",
     "authors": [
         {
@@ -9,6 +9,7 @@
         }
     ],
     "require": {
-        "greenter/xmldsig": "^5.0"
+        "greenter/xmldsig": "^5.0",
+        "php": ">=5.5"
     }
 }
