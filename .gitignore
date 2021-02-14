@@ -1,0 +1,6 @@
+.vscode/
+*.xml
+files/
+xml/
+vendor/
+ws-master/
