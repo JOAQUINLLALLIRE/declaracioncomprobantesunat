@@ -3,7 +3,6 @@ namespace SunatDeclaracion\Sunat;
 
 use Greenter\XMLSecLibs\Sunat\SignedXml;
 use Exception;
-require_once('vendor/autoload.php');
 
 class FirmarComprobante{
     public $numeroDocumento;
