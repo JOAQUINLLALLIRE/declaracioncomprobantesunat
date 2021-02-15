@@ -36,7 +36,14 @@ class FirmarComprobante{
         $this->pem = $res["cert"] . PHP_EOL . $res["pkey"];
     }
 
-    public function firmarComprobante($rutaXml = NULL, $contentXml = ""){
+    /**
+     * Undocumented function
+     *
+     * @param string $rutaXml Ruta del archivo
+     * @param string $contentXml Contenido del archivo
+     * @return string Retorna una cadena que es el XML Firmado
+     */
+    public function firmarComprobante($rutaXml = "", $contentXml = ""){
         $tieneArchivo = false;
 
         if(is_null($this->pem)) throw new Exception("Es necesario configurar el certificado digital");
@@ -53,7 +60,7 @@ class FirmarComprobante{
         if($tieneArchivo) $xmlSigned = $signer->signFromFile($rutaXml);
         else $xmlSigned = $signer->signXml($contentXml);
 
-        file_put_contents(str_replace("-sinfirma", "", $this->numeroDocumento) . ".xml", $xmlSigned);
+        return $xmlSigned;
     }
 }
 

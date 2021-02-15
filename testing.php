@@ -9,6 +9,14 @@ use SunatDeclaracion\Sunat\FirmarComprobante;
 try{
     $rutaBaseApp = $_SERVER['DOCUMENT_ROOT'] . "/concepto";
 
+    $objDate = DateTime::createFromFormat('Y-m-d H:i:s', '2021-02-14 10:37:15');
+    $timestamp = $objDate->getTimestamp();
+    var_dump($timestamp);
+
+    $objDate2 = (new DateTime())->setTimestamp($timestamp)->format('Y-m-d H:i:s');
+    var_dump($objDate2);
+
+    die;
     // $obj = new FirmarComprobante("0001-0221-sinfirma");
     // $rutaCertificado = $rutaBaseApp . "/files/certificadoDigital/LLAMA-PE-CERTIFICADO-DEMO-10432898275.pfx";
     // $rutaXml = $rutaBaseApp . "/xml/0001-2405-sinfirma.xml";
