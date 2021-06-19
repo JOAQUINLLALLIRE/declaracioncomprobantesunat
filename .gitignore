@@ -4,3 +4,4 @@ files/
 xml/
 vendor/
 ws-master/
+*.log

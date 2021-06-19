@@ -6,10 +6,45 @@ use Exception;
 use SoapFault;
 use SunatDeclaracion\Entidad\TipoSolicitud;
 
-class DeclaracionSunat extends BaseSunat implements ISendBill {    
-
+class DeclaracionSunat extends BaseSunat implements ISendBill {
     public function __construct($rucContribuyente, $usuarioWS, $passwordWS, $empresaFE = 10, $esProduccion = true){
         parent::__construct($rucContribuyente, $usuarioWS, $passwordWS, $empresaFE, $esProduccion);
+    }
+
+    public function validarUsuarioSecundario()
+    {
+        $parameters=[
+			'stream_context' => stream_context_create([
+				'ssl' => [
+					// 'ciphers'=>'AES256-SHA',
+					'verify_peer' => false,
+					'verify_peer_name' => false,
+					'allow_self_signed' => true
+				],
+			]),
+        ];
+        
+        try{
+            $numeroTicket = "202100000000000";
+            $this->soapClient = new SoapClient($this->obtenerRutaWsdl(TipoSolicitud::GetStatusCdrSummary), $parameters);
+
+            $request = $this->armarSolicitud(TipoSolicitud::GetStatusCdrSummary, ['numeroTicket' => $numeroTicket]);
+
+            $response = $this->soapClient->__doRequest($request, $this->obtenerEndPoint(TipoSolicitud::GetStatusCdrSummary), "getStatus", SOAP_SSL_METHOD_SSLv23);
+            
+            if(isset($this->soapClient->__soap_fault) && ($this->soapClient->__soap_fault instanceof SoapFault) ) throw $this->soapClient->__soap_fault;
+            
+            $rpta = $this->deserealizarResponse($response);
+
+            if(isset($rpta) && isset($rpta->mensajeCdr) && stripos($rpta->mensajeCdr, "ticket") !== FALSE) return TRUE;
+            else return FALSE;
+        }
+        catch(SoapFault $ex){
+            echo "Error " . $ex->getCode() . " Codigo: " . $ex->faultcode . " Detalles: " . $ex->faultstring;
+        }
+        catch(Exception $ex){
+            echo "Error " . $ex->getCode() . " Detalles: " . $ex->getMessage();
+        }
     }
 
     public function declararComprobante($tipoDoc, $numeroDocumento, $pathXml = NULL, $contentXml = NULL) {
@@ -70,6 +105,79 @@ class DeclaracionSunat extends BaseSunat implements ISendBill {
             if(isset($this->soapClient->__soap_fault) && ($this->soapClient->__soap_fault instanceof SoapFault) ) throw $this->soapClient->__soap_fault;
             
             return $this->deserealizarResponse($response);
+        }
+        catch(SoapFault $ex){
+            echo "Error " . $ex->getCode() . " Codigo: " . $ex->faultcode . " Detalles: " . $ex->faultstring;
+        }
+        catch(Exception $ex){
+            echo "Error " . $ex->getCode() . " Detalles: " . $ex->getMessage();
+        }
+    }
+
+    public function declararSummary($tipoDoc, $numeroDocumento, $pathXml = NULL, $contentXml = NULL){
+        $this->declaracionSunat->tipoDocumento = $tipoDoc;
+        $this->declaracionSunat->numeroDocumento = pathinfo($numeroDocumento)['filename'];
+        $this->pathXml = $pathXml;
+        $this->contentXml = $contentXml;
+        $parameters=[
+			'stream_context' => stream_context_create([
+				'ssl' => [
+					// 'ciphers'=>'AES256-SHA',
+					'verify_peer' => false,
+					'verify_peer_name' => false,
+					'allow_self_signed' => true
+				],
+			]),
+        ];
+                
+        try{
+            $this->soapClient = new SoapClient($this->obtenerRutaWsdl(TipoSolicitud::SendSummary), $parameters);
+
+            $request = $this->armarSolicitud(TipoSolicitud::SendSummary, ['contentZipBase64' => $this->comprimirArchivo()]);
+            $response = $this->soapClient->__doRequest($request, $this->obtenerEndPoint(TipoSolicitud::SendSummary), "sendBill", SOAP_SSL_METHOD_SSLv23);
+            if(isset($this->soapClient->__soap_fault) && ($this->soapClient->__soap_fault instanceof SoapFault) ) throw $this->soapClient->__soap_fault;
+            
+            return $this->deserealizarResponse($response);
+        }
+        catch(SoapFault $ex){
+            echo "Error " . $ex->getCode() . " Codigo: " . $ex->faultcode . " Detalles: " . $ex->faultstring;
+        }
+        catch(Exception $ex){
+            echo "Error " . $ex->getCode() . " Detalles: " . $ex->getMessage();
+        }
+    }
+
+    public function obtenerCdrSummary($numeroTicket, $tipoDoc, $numeroDocumento){
+        $parameters=[
+			'stream_context' => stream_context_create([
+				'ssl' => [
+					// 'ciphers'=>'AES256-SHA',
+					'verify_peer' => false,
+					'verify_peer_name' => false,
+					'allow_self_signed' => true
+				],
+			]),
+        ];
+        
+        try{
+            $this->declaracionSunat->tipoDocumento = $tipoDoc;
+            $this->declaracionSunat->numeroDocumento = $numeroDocumento;
+            $this->soapClient = new SoapClient($this->obtenerRutaWsdl(TipoSolicitud::GetStatusCdrSummary), $parameters);
+
+            $request = $this->armarSolicitud(TipoSolicitud::GetStatusCdrSummary, ['numeroTicket' => $numeroTicket]);
+            $this->GenerarTraza($numeroDocumento."-REQUEST.xml", $request);
+
+            $response = $this->soapClient->__doRequest($request, $this->obtenerEndPoint(TipoSolicitud::GetStatusCdrSummary), "getStatus", SOAP_SSL_METHOD_SSLv23);
+
+            file_put_contents("response-obtenerCdrSummary.log", date('Y-m-d H:i:s') .  $response . PHP_EOL, FILE_APPEND );
+            
+            if(isset($this->soapClient->__soap_fault) && ($this->soapClient->__soap_fault instanceof SoapFault) ) throw $this->soapClient->__soap_fault;
+            
+            $rpta = $this->deserealizarResponse($response);
+
+            if(isset($rpta->xmlResponseSunat)) $this->GenerarTraza($numeroDocumento."-RESPONSE.xml", $rpta->xmlResponseSunat);
+            
+            return $rpta;
         }
         catch(SoapFault $ex){
             echo "Error " . $ex->getCode() . " Codigo: " . $ex->faultcode . " Detalles: " . $ex->faultstring;

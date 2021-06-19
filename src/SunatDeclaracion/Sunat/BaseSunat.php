@@ -11,6 +11,7 @@ use SunatDeclaracion\Entidad\TipoRespuestaSunat;
 use SunatDeclaracion\Entidad\TipoSolicitud;
 
 class BaseSunat {
+    protected $logger = FALSE;
     protected $declaracionSunat = NULL;
     protected $soapClient = NULL;
     private $esProduccion = FALSE;
@@ -31,6 +32,8 @@ class BaseSunat {
     public function obtenerRutaWsdl($tipoSolicitud = 0){
         switch($tipoSolicitud){
             case TipoSolicitud::SendBill:
+            case TipoSolicitud::SendSummary:
+            case TipoSolicitud::GetStatusCdrSummary:
                 return $this->rutaBase .'/wsdl/billService.wsdl';
             case TipoSolicitud::GetStatusCdr:
                 return $this->rutaBase .'/wsdl/billConsultService.wsdl';
@@ -60,17 +63,34 @@ class BaseSunat {
             $this->endPoint = $this->endPointEmpresaFE($tipoSolicitud);
             return $this->endPoint;
         }
+        else if ($tipoSolicitud == TipoSolicitud::SendSummary){
+            $this->endPoint = $this->endPointEmpresaFE($tipoSolicitud);
+            return $this->endPoint;
+        }
+        else if ($tipoSolicitud == TipoSolicitud::GetStatusCdrSummary){
+            $this->endPoint = $this->endPointEmpresaFE($tipoSolicitud);
+            return $this->endPoint;
+        }
         throw new Exception("No se puede obtener el EndPoint para declarar el comprobante");  
     }
     
     protected function obtenerNombreArchivo($tipo = 0){
         switch($tipo){
             case 1:
+                if(in_array($this->declaracionSunat->tipoDocumento, ["RC", "RA"]) !== FALSE )
+                    return $this->declaracionSunat->rucContribuyente."-".$this->declaracionSunat->numeroDocumento.".zip";
+                else
                 return $this->declaracionSunat->rucContribuyente."-".$this->declaracionSunat->tipoDocumento."-".$this->declaracionSunat->numeroDocumento.".zip";
             case 2:
-                return $this->declaracionSunat->rucContribuyente."-".$this->declaracionSunat->tipoDocumento."-".$this->declaracionSunat->numeroDocumento.".xml";
+                if(in_array($this->declaracionSunat->tipoDocumento, ["RC", "RA"]) !== FALSE )
+                    return $this->declaracionSunat->rucContribuyente."-".$this->declaracionSunat->numeroDocumento.".xml";
+                else 
+                    return $this->declaracionSunat->rucContribuyente."-".$this->declaracionSunat->tipoDocumento."-".$this->declaracionSunat->numeroDocumento.".xml";
             case 3:
-                return "R-" . $this->declaracionSunat->rucContribuyente."-".$this->declaracionSunat->tipoDocumento."-".$this->declaracionSunat->numeroDocumento.".xml";
+                if(in_array($this->declaracionSunat->tipoDocumento, ["RC", "RA"]) !== FALSE )
+                    return "R-" . $this->declaracionSunat->rucContribuyente."-".$this->declaracionSunat->numeroDocumento.".xml";
+                else 
+                    return "R-" . $this->declaracionSunat->rucContribuyente."-".$this->declaracionSunat->tipoDocumento."-".$this->declaracionSunat->numeroDocumento.".xml";
             default:
                 return "";
         }
@@ -78,7 +98,8 @@ class BaseSunat {
 
     private function obtenerTemplateSolicitud($tipoSolicitud){
         switch($tipoSolicitud){
-            case TipoSolicitud::SendBill:
+            case TipoSolicitud::SendBill:       
+            case TipoSolicitud::SendSummary:         
                 return <<<EOF
 <soapenv:Envelope xmlns:soapenv="http://schemas.xmlsoap.org/soap/envelope/" xmlns:ser="http://service.sunat.gob.pe" xmlns:wsse="http://docs.oasis-open.org/wss/2004/01/oasis-200401-wss-wssecurity-secext-1.0.xsd">
     <soapenv:Header>
@@ -119,12 +140,34 @@ EOF;
 	</SOAP-ENV:Body>
 </SOAP-ENV:Envelope>
 EOF;
+            break;
+
+            case TipoSolicitud::GetStatusCdrSummary:
+            return <<<EOF
+<soapenv:Envelope xmlns:soapenv="http://schemas.xmlsoap.org/soap/envelope/" xmlns:ser="http://service.sunat.gob.pe" xmlns:wsse="http://docs.oasis-open.org/wss/2004/01/oasis-200401-wss-wssecurity-secext-1.0.xsd">
+<soapenv:Header>
+    <wsse:Security>
+        <wsse:UsernameToken>
+            <wsse:Username>{USUARIO_WS}</wsse:Username>
+            <wsse:Password>{PASSWORD_WS}</wsse:Password>
+        </wsse:UsernameToken>
+    </wsse:Security>
+</soapenv:Header>
+<soapenv:Body>
+    <ser:getStatus>
+        <ticket>{NUMERO_TICKET}</ticket>
+    </ser:getStatus>
+</soapenv:Body>
+</soapenv:Envelope>
+EOF;
+            break;
         }
     }
 
     protected function armarSolicitud($tipoSolicitud, $data = []){
         switch($tipoSolicitud){
             case TipoSolicitud::SendBill:
+            case TipoSolicitud::SendSummary:
                 return str_replace(
                     [
                         "{USUARIO_WS}", 
@@ -157,6 +200,22 @@ EOF;
                         $this->declaracionSunat->tipoDocumento,
                         $data['serie'],
                         $data['correlativo']
+                    ],
+                    $this->obtenerTemplateSolicitud($tipoSolicitud));
+                break;
+            case TipoSolicitud::GetStatusCdrSummary:
+                return str_replace(
+                    [
+                        "{USUARIO_WS}", 
+                        "{PASSWORD_WS}", 
+                        "{RUC_CONTRIBUYENTE}", 
+                        "{NUMERO_TICKET}"
+                    ], 
+                    [
+                        $this->declaracionSunat->rucContribuyente.$this->declaracionSunat->usuarioWS,
+                        $this->declaracionSunat->passwordWS,
+                        $this->declaracionSunat->rucContribuyente,
+                        $data['numeroTicket']
                     ],
                     $this->obtenerTemplateSolicitud($tipoSolicitud));
                 break;
@@ -233,6 +292,29 @@ EOF;
                 return $rpta;
             } 
         }
+
+        $nodos = null;
+        $nodos = $xmlResponse->getElementsByTagName("getStatusResponse");
+        if($nodos->length > 0){
+            $content = $nodos->item(0)->getElementsByTagName("content")->item(0)->nodeValue;
+            $statusCode = $nodos->item(0)->getElementsByTagName("statusCode")->item(0)->nodeValue;
+
+            if($statusCode == 0){
+                $contenidoCdr = $this->descomprimirArchivo(base64_decode($content));
+                return $this->analizarCdr($contenidoCdr);
+            }
+            else{
+                $rpta = new RespuestaSunat();
+                $rpta->esProduccion = ($this->esProduccion) ? "PRODUCCION" : "BETA";
+                $rpta->endPointEmpresaFE = EmpresaFE::getNombreEmpresa($this->empresaFE) ." EndPoint: ". $this->endPoint;
+                $rpta->tipoRespuestaSunat = TipoRespuestaSunat::Excepcion;
+                $rpta->codigoCdr = -1;
+                $rpta->mensajeCdr = "Error|" . $statusCode . " : " . $content;
+                $rpta->xmlResponseSunat = $response;
+                return $rpta;
+            }
+        }
+
         $nodos = null;
         $nodos = $xmlResponse->getElementsByTagName("applicationResponse");
         if($nodos->length > 0){
@@ -241,8 +323,19 @@ EOF;
                 return $this->analizarCdr($contenidoCdr);
             }            
         }
+
         $nodos = null;
         $nodos = $xmlResponse->getElementsByTagName("statusCdr");
+        if($nodos->length > 0){
+            $nodo = $nodos->item(0)->getElementsByTagName("content")->item(0);
+            if($nodo != null){
+                $contenidoCdr = $this->descomprimirArchivo(base64_decode($nodo->textContent));
+                return $this->analizarCdr($contenidoCdr);
+            }
+        }
+
+        $nodos = null;
+        $nodos = $xmlResponse->getElementsByTagName("getStatusResponse");
         if($nodos->length > 0){
             $nodo = $nodos->item(0)->getElementsByTagName("content")->item(0);
             if($nodo != null){
@@ -279,6 +372,8 @@ EOF;
     private function endPointEmpresaFE($tipoSolicitud = 0){
         switch ($tipoSolicitud){
             case TipoSolicitud::SendBill:
+            case TipoSolicitud::SendSummary:
+            case TipoSolicitud::GetStatusCdrSummary:
                 if($this->esProduccion){
                     switch($this->empresaFE){
                         case EmpresaFE::Sunat:
@@ -317,4 +412,10 @@ EOF;
         }
     }
 
+    protected function GenerarTraza($nombreArchivo = "", $contenidoArchivo = ""){
+        if($this->logger){
+            if(file_exists($nombreArchivo)) @unlink($nombreArchivo);
+            file_put_contents($nombreArchivo, date('Y-m-d') . " : " . $contenidoArchivo . PHP_EOL, FILE_APPEND);
+        }
+    }
 }
